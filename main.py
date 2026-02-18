@@ -11,9 +11,8 @@ def main():
     choice = input("\nSelect an option: ")
 
     if choice == "1":
-        # This executes your collect_data.py script
         print("\nLaunching Data Collector...")
-        start_collection(csv_path="data/poses_raw.csv")
+        start_collection(csv_path="data/poses.csv")
     elif choice.lower() == "q":
         print("Goodbye!")
         sys.exit()
