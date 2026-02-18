@@ -4,7 +4,7 @@ import csv
 import os
 
 
-def start_collection(csv_path="../data/poses_raw.csv"):
+def start_collection(csv_path="../data/poses.csv"):
     # --- Setup MediaPipe Drawing ---
     mp_drawing = mp.solutions.drawing_utils
     mp_drawing_styles = mp.solutions.drawing_styles
