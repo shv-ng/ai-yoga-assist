@@ -1,13 +1,13 @@
 import sys
 
 from src.collect_data import start_collection
-from src.realtime_classify import classify
+from src.realtime import classify
 
 
 def main():
     print("=== AI Yoga Assist ===")
     print("1. Start Data Collection")
-    print("2. Start Classification")
+    print("2. Start Classification and correction")
     print("q. Quit")
 
     choice = input("\nSelect an option: ")
