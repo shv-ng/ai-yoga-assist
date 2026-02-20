@@ -1,7 +1,7 @@
 import sys
 
 from src.collect_data import start_collection
-from src.realtime import classify
+from src.realtime_classify import classify
 
 
 def main():
