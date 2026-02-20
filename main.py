@@ -1,7 +1,4 @@
-import sys
 
-from src.collect_data import start_collection
-from src.realtime import classify
 
 
 def main():
@@ -14,12 +11,15 @@ def main():
 
     if choice == "1":
         print("\nLaunching Data Collector...")
+        from src.collect_data import start_collection
         start_collection(csv_path="data/poses.csv")
     elif choice == "2":
         print("\nLaunching Classification...")
+        from src.realtime import classify
         classify("./models/pose_classifier.h5","./models/label_encoder.pkl")
     elif choice.lower() == "q":
         print("Goodbye!")
+        import sys
         sys.exit()
     else:
         print("Invalid choice.")
