@@ -1,0 +1,64 @@
+{
+  "session_id": "20260319_070134",
+  "duration_seconds": 47.12,
+  "total_corrections": 12,
+  "resolved_corrections": 8,
+  "resolution_rate": 0.67,
+  "correction_frequency": {
+    "tree_foot_height": 2,
+    "warrior_front_knee_bend": 2,
+    "warrior_left_arm": 2,
+    "warrior_right_arm": 2,
+    "tree_left_arm": 1,
+    "tree_right_arm": 1,
+    "tree_standing_leg": 1,
+    "warrior_torso_lean": 1
+  },
+  "pose_breakdown": {
+    "TreePose": {
+      "total_seconds": 20.349999999999998,
+      "corrections_fired": 5
+    },
+    "WarriorPose": {
+      "total_seconds": 22.83,
+      "corrections_fired": 7
+    }
+  },
+  "pose_intervals": [
+    {
+      "pose": "TreePose",
+      "start": 3.95,
+      "end": 13.13,
+      "duration": 9.18,
+      "n_corrections": 4
+    },
+    {
+      "pose": "WarriorPose",
+      "start": 13.13,
+      "end": 17.9,
+      "duration": 4.77,
+      "n_corrections": 3
+    },
+    {
+      "pose": "TreePose",
+      "start": 17.9,
+      "end": 25.26,
+      "duration": 7.36,
+      "n_corrections": 1
+    },
+    {
+      "pose": "WarriorPose",
+      "start": 25.26,
+      "end": 34.43,
+      "duration": 9.17,
+      "n_corrections": 3
+    },
+    {
+      "pose": "TreePose",
+      "start": 34.43,
+      "end": 38.24,
+      "duration": 3.81,
+      "n_corrections": 0
+    }
+  ]
+}
