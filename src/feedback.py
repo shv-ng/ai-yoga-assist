@@ -1,36 +1,19 @@
 """
 Priority-queue based voice feedback manager.
 
-How it works:
-  1. After each pose check, call feedback_manager.update(corrections)
-  2. The manager holds a queue of pending corrections, deduplicated by key
-  3. A background thread speaks the highest-severity pending correction
-  4. Each correction key has an individual cooldown — once spoken it won't
-     repeat until the cooldown expires (default 6 seconds)
-  5. Corrections that are resolved (pose improved) are dropped automatically
-
-Usage:
-    from feedback import FeedbackManager
-
-    fm = FeedbackManager(cooldown_seconds=6)
-    fm.start()
-
-    # in your frame loop:
-    is_correct, corrections = check_pose(label, landmarks)
-    fm.update(corrections)
-
-    # on exit:
-    fm.stop()
+Fix: pyttsx3 engine is created fresh for every utterance and immediately
+destroyed after. This avoids the well-known pyttsx3 threading bug where
+runAndWait() deadlocks after a few calls when the engine is reused across
+multiple speak() invocations on a background thread.
 """
 
+import heapq
 import threading
 import time
-import queue
 import logging
 
 try:
     import pyttsx3
-
     TTS_AVAILABLE = True
 except ImportError:
     TTS_AVAILABLE = False
@@ -40,82 +23,70 @@ except ImportError:
 
 
 # ─────────────────────────────────────────────
-#  CorrectionEntry  (one slot in the queue)
+#  CorrectionEntry
 # ─────────────────────────────────────────────
-
 
 class CorrectionEntry:
     def __init__(self, key: str, message: str, severity: int):
-        self.key = key
-        self.message = message
+        self.key      = key
+        self.message  = message
         self.severity = severity
 
-    # heapq is a min-heap, so invert severity for max-priority behaviour
     def __lt__(self, other):
-        return self.severity > other.severity
+        return self.severity > other.severity   # max-heap on severity
 
 
 # ─────────────────────────────────────────────
 #  FeedbackManager
 # ─────────────────────────────────────────────
 
-
 class FeedbackManager:
     """
-    Thread-safe voice feedback manager with per-key cooldowns.
+    Thread-safe voice feedback manager driven by a fixed-interval ticker.
+
+    Every tick_seconds the speaker thread picks the highest-severity
+    pending correction that is still active and not on cooldown, speaks
+    it once using a fresh TTS engine, then waits for the next tick.
 
     Parameters
     ----------
     cooldown_seconds : float
-        How long (seconds) before the same correction can be spoken again.
-    speak_interval : float
-        Minimum gap between any two spoken messages (avoids rapid-fire output).
+        How long before the same correction key can be spoken again.
+    tick_seconds : float
+        Fixed interval between voice feedback attempts (default 5 s).
     rate : int
-        TTS speech rate (words per minute). pyttsx3 default is ~200.
+        TTS speech rate (words per minute).
     volume : float
         TTS volume 0.0 – 1.0.
     """
 
     def __init__(
         self,
-        cooldown_seconds: float = 6.0,
-        speak_interval: float = 4.0,
-        rate: int = 155,
-        volume: float = 0.9,
+        cooldown_seconds: float = 10.0,
+        tick_seconds:     float = 5.0,
+        rate:             int   = 155,
+        volume:           float = 0.9,
     ):
         self.cooldown_seconds = cooldown_seconds
-        self.speak_interval = speak_interval
+        self.tick_seconds     = tick_seconds
+        self._rate            = rate
+        self._volume          = volume
 
-        # key → timestamp when last spoken
-        self._cooldowns: dict[str, float] = {}
+        self._cooldowns:    dict[str, float]  = {}
+        self._pending:      list              = []   # heapq
+        self._pending_keys: set[str]          = set()
+        self._active_keys:  set[str]          = set()
+        self._good_pending: bool              = False
 
-        # current active correction keys (updated each frame)
-        self._active_keys: set[str] = set()
+        self._lock        = threading.Lock()
+        self._stop_event  = threading.Event()
+        self._speak_thread: threading.Thread | None = None
 
-        # internal queue (thread-safe)
-        self._q: queue.PriorityQueue = queue.PriorityQueue()
-
-        # lock protecting cooldowns + active keys
-        self._lock = threading.Lock()
-
-        self._stop_event = threading.Event()
-        self._speak_thread = None
-
-        # TTS engine lives on the speaker thread (pyttsx3 is not thread-safe)
-        self._rate = rate
-        self._volume = volume
-        self._engine = None  # initialised inside speaker thread
-
-        # last spoken timestamp
-        self._last_spoken: float = 0.0
-
-        # for display / debug — last spoken message
         self.last_message: str = ""
 
     # ── Public API ────────────────────────────
 
     def start(self):
-        """Start the background speaker thread."""
         self._stop_event.clear()
         self._speak_thread = threading.Thread(
             target=self._speaker_loop,
@@ -123,103 +94,115 @@ class FeedbackManager:
             daemon=True,
         )
         self._speak_thread.start()
-        logging.info("FeedbackManager started")
+        logging.info("FeedbackManager started (tick=%.1fs)", self.tick_seconds)
 
     def stop(self):
-        """Gracefully stop the speaker thread."""
         self._stop_event.set()
         if self._speak_thread:
-            self._speak_thread.join(timeout=3)
+            self._speak_thread.join(timeout=5)
         logging.info("FeedbackManager stopped")
 
     def update(self, corrections: list):
         """
-        Called every frame (or every N frames) with the latest correction list.
-        Corrections that have been resolved (no longer in list) are dropped.
-        New corrections above cooldown threshold are queued.
-
-        Parameters
-        ----------
-        corrections : list[dict]
-            Each dict: {"key": str, "message": str, "severity": int}
+        Call every frame with the current correction list.
+        Adds new corrections to the heap; resolved ones are dropped at speak time.
         """
-        now = time.time()
-
         with self._lock:
-            new_active = {c["key"] for c in corrections}
-            self._active_keys = new_active
-
+            self._active_keys = {c["key"] for c in corrections}
             for c in corrections:
                 key = c["key"]
-                message = c["message"]
-                severity = c["severity"]
-
-                # Skip if on cooldown
-                last_time = self._cooldowns.get(key, 0.0)
-                if now - last_time < self.cooldown_seconds:
-                    continue
-
-                # Queue it (duplicates are fine — speaker thread checks active_keys)
-                self._q.put(CorrectionEntry(key, message, severity))
+                if key not in self._pending_keys:
+                    heapq.heappush(self._pending, CorrectionEntry(key, c["message"], c["severity"]))
+                    self._pending_keys.add(key)
 
     def update_good(self):
-        """Call this when the pose is fully correct to speak a positive cue."""
+        """Call when the pose is fully correct."""
         with self._lock:
-            self._active_keys = set()
-        self._q.put(
-            CorrectionEntry("__good__", "Good form! Hold this position.", severity=0)
-        )
+            self._active_keys  = set()
+            self._good_pending = True
 
-    # ── Speaker thread ─────────────────────────
+    # ── Speaker thread ────────────────────────
 
     def _speaker_loop(self):
-        if TTS_AVAILABLE:
-            self._engine = pyttsx3.init()
-            self._engine.setProperty("rate", self._rate)
-            self._engine.setProperty("volume", self._volume)
-
         while not self._stop_event.is_set():
-            try:
-                entry: CorrectionEntry = self._q.get(timeout=0.5)
-            except queue.Empty:
-                continue
 
-            now = time.time()
+            # ── Wait one full tick (interruptible) ────────────────────
+            tick_start = time.time()
+            while not self._stop_event.is_set():
+                if time.time() - tick_start >= self.tick_seconds:
+                    break
+                time.sleep(0.1)
 
-            # Enforce minimum gap between any two utterances
-            if now - self._last_spoken < self.speak_interval:
-                # Put it back only if still active, else discard
-                with self._lock:
-                    if entry.key in self._active_keys or entry.key == "__good__":
-                        self._q.put(entry)
-                time.sleep(0.2)
-                continue
+            if self._stop_event.is_set():
+                break
 
-            # Drop if correction is no longer active (pose was fixed)
-            if entry.key != "__good__":
-                with self._lock:
-                    if entry.key not in self._active_keys:
-                        continue  # silently discard — already resolved
+            # ── Pick what to say ──────────────────────────────────────
+            message = None
+            now     = time.time()
 
-            # Check cooldown again (may have changed while waiting in queue)
-            if entry.key != "__good__":
-                with self._lock:
-                    last_time = self._cooldowns.get(entry.key, 0.0)
-                    if now - last_time < self.cooldown_seconds:
-                        continue
-                    self._cooldowns[entry.key] = now
+            with self._lock:
+                if self._good_pending:
+                    self._good_pending = False
+                    last_good = self._cooldowns.get("__good__", 0.0)
+                    if now - last_good >= self.cooldown_seconds:
+                        message = "Good form! Hold this position."
+                        self._cooldowns["__good__"] = now
 
-            self.last_message = entry.message
-            self._last_spoken = now
-            self._speak(entry.message)
+                else:
+                    scratch: list[CorrectionEntry] = []
+
+                    while self._pending:
+                        entry = heapq.heappop(self._pending)
+                        self._pending_keys.discard(entry.key)
+
+                        # Drop if no longer active
+                        if entry.key not in self._active_keys:
+                            continue
+
+                        # Still on cooldown — save for re-insertion
+                        last_time = self._cooldowns.get(entry.key, 0.0)
+                        if now - last_time < self.cooldown_seconds:
+                            scratch.append(entry)
+                            continue
+
+                        # ✓ Speak this one
+                        self._cooldowns[entry.key] = now
+                        message = entry.message
+                        break   # only one per tick
+
+                    # Re-insert cooled-down active entries
+                    for e in scratch:
+                        if e.key in self._active_keys:
+                            heapq.heappush(self._pending, e)
+                            self._pending_keys.add(e.key)
+
+            # ── Speak ─────────────────────────────────────────────────
+            if message:
+                self.last_message = message
+                self._speak(message)
 
     def _speak(self, text: str):
-        if TTS_AVAILABLE and self._engine:
-            try:
-                self._engine.say(text)
-                self._engine.runAndWait()
-            except Exception as e:
-                logging.warning(f"TTS error: {e}")
-        else:
-            # Fallback: just print so development works without a speaker
+        """
+        Speak text using a brand-new pyttsx3 engine instance.
+
+        A fresh engine is created, used once, and immediately stopped.
+        This is intentional — reusing a single engine across calls causes
+        pyttsx3 to deadlock silently after a few utterances on a background
+        thread, which is exactly the "voice stops after a while" bug.
+        """
+        if not TTS_AVAILABLE:
+            print(f"[VOICE] {text}")
+            return
+
+        try:
+            engine = pyttsx3.init()
+            engine.setProperty("rate",   self._rate)
+            engine.setProperty("volume", self._volume)
+            engine.say(text)
+            engine.runAndWait()
+            engine.stop()
+        except Exception as e:
+            logging.warning("TTS error: %s", e)
+            # If pyttsx3 fails entirely, fall back to print so the
+            # developer can still see what would have been spoken.
             print(f"[VOICE] {text}")

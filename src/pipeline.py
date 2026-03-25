@@ -98,6 +98,26 @@ class LandmarkPipeline:
             dtype=np.float32
         ).flatten()
 
+    def process_for_classify(self, landmarks) -> np.ndarray:
+        """
+        Normalize only — NO EMA smoothing.
+        Use this to generate the feature vector for the classifier.
+        Matches exactly what the notebook did during training.
+        """
+        raw    = self._to_array(landmarks)      # (33, 3)
+        normed = self._normalize(raw)           # (33, 3) — no smoothing
+        lm_list = self._to_landmark_list(normed)
+        return self.to_feature_vector(lm_list)  # (99,) flat array
+
+    def process(self, landmarks) -> list:
+        """
+        EMA smooth → normalize.
+        Use this for corrections geometry only.
+        """
+        raw      = self._to_array(landmarks)
+        smoothed = self._smooth(raw)            # updates EMA state
+        normed   = self._normalize(smoothed)
+        return self._to_landmark_list(normed)
     # ── Internal steps ────────────────────────────────────────────────────────
 
     def _to_array(self, landmarks) -> np.ndarray:
