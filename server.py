@@ -25,17 +25,29 @@ import os
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 
-from server_pipeline import run_pipeline, VOICE_DIR
+from server_pipeline import run_pipeline, run_pipeline_landmarks, VOICE_DIR
 
-app = FastAPI(title="AI Yoga Assist — ESP32 server")
+app = FastAPI(title="AI Yoga Assist — Server")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.post("/process_landmarks")
+async def process_landmarks(request: Request):
+    """Expects JSON body: {"landmarks": [{"x": 0.5, "y": 0.5, "z": 0.1, "visibility": 0.9}, ...]}"""
+    data = await request.json()
+    landmarks = data.get("landmarks")
+    if not landmarks:
+        raise HTTPException(status_code=400, detail="no landmarks provided")
+
+    voice_id = run_pipeline_landmarks(landmarks)
+    return {"voice_id": voice_id}
 
 
 @app.post("/process")

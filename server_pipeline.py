@@ -115,6 +115,57 @@ def _synthesise(text: str, path: Path):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def run_pipeline_landmarks(landmarks_list: list) -> int | None:
+    """
+    Client-side MediaPipe pipeline. Receives 33 landmarks from the client.
+
+    Parameters
+    ----------
+    landmarks_list : list of dicts or lists
+        Raw landmarks sent from client-side MediaPipe.
+
+    Returns
+    -------
+    voice_id : int | None
+    """
+    # Convert list to MediaPipe-like objects (must have .x, .y, .z, .visibility)
+    from types import SimpleNamespace
+    landmarks = [SimpleNamespace(**lm) if isinstance(lm, dict) else lm for lm in landmarks_list]
+
+    all_visible, _ = _check_visibility(landmarks)
+
+    if not all_visible:
+        _lm_pipeline.reset()
+        vid = _generate_voice_file("Please step into frame fully")
+        return vid
+
+    # Preprocess
+    feat_vec  = _lm_pipeline.process_for_classify(landmarks)
+    processed = _lm_pipeline.process(landmarks)
+
+    # Classify
+    probs      = _model.predict(feat_vec.reshape(1, -1), verbose=0)[0]
+    top_idx    = int(np.argmax(probs))
+    confidence = float(probs[top_idx])
+
+    if confidence < CONFIDENCE_THRESHOLD:
+        _lm_pipeline.reset()
+        return None
+
+    label = _le.inverse_transform([top_idx])[0]
+    is_correct, corrections = check_pose(label, processed)
+
+    if is_correct:
+        return None   # or "Good form!" if you want constant feedback
+
+    if not corrections:
+        return None
+
+    top = corrections[0]
+    vid = _generate_voice_file(top["message"])
+    return vid
+
+
 def run_pipeline(frame: np.ndarray) -> int | None:
     """
     Full per-frame pipeline.
