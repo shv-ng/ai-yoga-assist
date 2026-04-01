@@ -551,6 +551,214 @@ def check_goddess_pose(landmarks):
 
 
 # ─────────────────────────────────────────────
+#  7. Corpse Pose  (Savasana)
+# ─────────────────────────────────────────────
+
+def check_corpse_pose(landmarks):
+    """
+    Normalised-space checks:
+      - Horizontal: |shoulder_avg_y - hip_avg_y| < 0.30 tu
+      - Arms away: |wrist_x - shoulder_x| > 0.20 tu
+      - Legs not crossed: ankle_width > 0.30 tu
+      - Head neutral: |nose_x - hip_mid_x| < 0.15 tu
+    """
+    lms = landmarks
+    corrections = []
+
+    shoulder_avg_y = (_lm(lms, 11).y + _lm(lms, 12).y) / 2
+    hip_avg_y      = (_lm(lms, 23).y + _lm(lms, 24).y) / 2
+    hip_mid_x      = (_lm(lms, 23).x + _lm(lms, 24).x) / 2
+
+    # Horizontal
+    if abs(shoulder_avg_y - hip_avg_y) > 0.30:
+        corrections.append(_correction(
+            "corpse_horizontal",
+            "Lie flat on your back — keep your body horizontal",
+            severity=3,
+        ))
+
+    # Arms away
+    if abs(_lm(lms, 15).x - _lm(lms, 11).x) < 0.20:
+        corrections.append(_correction(
+            "corpse_left_arm",
+            "Move your left arm slightly away from your body",
+            severity=1,
+        ))
+    if abs(_lm(lms, 16).x - _lm(lms, 12).x) < 0.20:
+        corrections.append(_correction(
+            "corpse_right_arm",
+            "Move your right arm slightly away from your body",
+            severity=1,
+        ))
+
+    # Legs not crossed
+    ankle_width = abs(_lm(lms, 27).x - _lm(lms, 28).x)
+    if ankle_width < 0.30:
+        corrections.append(_correction(
+            "corpse_legs_crossed",
+            "Keep your feet slightly apart — let your toes fall open",
+            severity=1,
+        ))
+
+    # Head neutral
+    nose_x = _lm(lms, 0).x
+    if abs(nose_x - hip_mid_x) > 0.15:
+        corrections.append(_correction(
+            "corpse_head",
+            "Keep your head neutral and centred",
+            severity=1,
+        ))
+
+    return len(corrections) == 0, corrections
+
+
+# ─────────────────────────────────────────────
+#  8. Bridge Pose  (Setu Bandha Sarvangasana)
+# ─────────────────────────────────────────────
+
+def check_bridge_pose(landmarks):
+    """
+    Normalised-space checks:
+      - Hips raised: hip_avg_y < shoulder_avg_y - 0.10 tu AND hip_avg_y < ankle_avg_y - 0.10 tu
+      - Knees not caving: knee_width ≥ 0.8 * ankle_width
+      - Feet flat: |ankle_y - heel_y| < 0.10 tu
+    """
+    lms = landmarks
+    corrections = []
+
+    shoulder_avg_y = (_lm(lms, 11).y + _lm(lms, 12).y) / 2
+    hip_avg_y      = (_lm(lms, 23).y + _lm(lms, 24).y) / 2
+    ankle_avg_y    = (_lm(lms, 27).y + _lm(lms, 28).y) / 2
+
+    # Hips raised (smaller y is higher)
+    if hip_avg_y > shoulder_avg_y - 0.10 or hip_avg_y > ankle_avg_y - 0.10:
+        corrections.append(_correction(
+            "bridge_hips_raised",
+            "Lift your hips higher toward the ceiling — they should be above your shoulders and knees",
+            severity=3,
+        ))
+
+    # Knees not caving
+    knee_width  = abs(_lm(lms, 25).x - _lm(lms, 26).x)
+    ankle_width = abs(_lm(lms, 27).x - _lm(lms, 28).x)
+    if ankle_width > 0.05 and knee_width < ankle_width * 0.8:
+        corrections.append(_correction(
+            "bridge_knees_cave",
+            "Keep your knees parallel — don't let them cave inward",
+            severity=2,
+        ))
+
+    # Feet flat (ankles and heels should be at floor level)
+    if abs(_lm(lms, 27).y - _lm(lms, 29).y) > 0.10 or abs(_lm(lms, 28).y - _lm(lms, 30).y) > 0.10:
+        corrections.append(_correction(
+            "bridge_feet_flat",
+            "Keep your feet flat on the floor",
+            severity=2,
+        ))
+
+    return len(corrections) == 0, corrections
+
+
+# ─────────────────────────────────────────────
+#  9. Supine Twist Pose  (Supta Matsyendrasana)
+# ─────────────────────────────────────────────
+
+def check_supine_twist_pose(landmarks):
+    """
+    Normalised-space checks:
+      - One knee crossed: |knee_x - hip_mid_x| > 0.40 tu
+      - Shoulders flat: |left_shoulder_y - right_shoulder_y| < 0.12 tu
+      - Arms extended: |wrist_y - shoulder_y| < 0.20 tu
+    """
+    lms = landmarks
+    corrections = []
+
+    hip_mid_x = (_lm(lms, 23).x + _lm(lms, 24).x) / 2
+    left_knee_x  = _lm(lms, 25).x
+    right_knee_x = _lm(lms, 26).x
+
+    # Knee crossed
+    if abs(left_knee_x - hip_mid_x) < 0.40 and abs(right_knee_x - hip_mid_x) < 0.40:
+        corrections.append(_correction(
+            "supine_twist_knee",
+            "Cross one knee over your body to the opposite side",
+            severity=3,
+        ))
+
+    # Shoulders flat
+    shoulder_tilt = abs(_lm(lms, 11).y - _lm(lms, 12).y)
+    if shoulder_tilt > 0.12:
+        corrections.append(_correction(
+            "supine_twist_shoulders",
+            "Keep both shoulders flat on the mat",
+            severity=2,
+        ))
+
+    # Arms extended
+    if abs(_lm(lms, 15).y - _lm(lms, 11).y) > 0.20:
+        corrections.append(_correction(
+            "supine_twist_left_arm",
+            "Extend your left arm out to the side at shoulder height",
+            severity=1,
+        ))
+    if abs(_lm(lms, 16).y - _lm(lms, 12).y) > 0.20:
+        corrections.append(_correction(
+            "supine_twist_right_arm",
+            "Extend your right arm out to the side at shoulder height",
+            severity=1,
+        ))
+
+    return len(corrections) == 0, corrections
+
+
+# ─────────────────────────────────────────────
+#  10. Happy Baby Pose  (Ananda Balasana)
+# ─────────────────────────────────────────────
+
+def check_happy_baby_pose(landmarks):
+    """
+    Normalised-space checks:
+      - Knees above hips: knee_y < hip_y - 0.20 tu
+      - Knees wide: knee_width > 0.70 tu
+      - Ankles above knees: ankle_y < knee_y - 0.10 tu
+    """
+    lms = landmarks
+    corrections = []
+
+    left_knee_y  = _lm(lms, 25).y
+    right_knee_y = _lm(lms, 26).y
+    left_hip_y   = _lm(lms, 23).y
+    right_hip_y  = _lm(lms, 24).y
+
+    # Knees above hips
+    if left_knee_y > left_hip_y - 0.20 or right_knee_y > right_hip_y - 0.20:
+        corrections.append(_correction(
+            "happy_baby_knees_up",
+            "Pull your knees closer to your chest",
+            severity=3,
+        ))
+
+    # Knees wide
+    knee_width = abs(_lm(lms, 25).x - _lm(lms, 26).x)
+    if knee_width < 0.70:
+        corrections.append(_correction(
+            "happy_baby_knees_wide",
+            "Open your knees wide toward your armpits",
+            severity=2,
+        ))
+
+    # Ankles above knees
+    if _lm(lms, 27).y > left_knee_y - 0.10 or _lm(lms, 28).y > right_knee_y - 0.10:
+        corrections.append(_correction(
+            "happy_baby_ankles",
+            "Stack your ankles directly over your knees",
+            severity=2,
+        ))
+
+    return len(corrections) == 0, corrections
+
+
+# ─────────────────────────────────────────────
 #  Dispatcher
 # ─────────────────────────────────────────────
 
@@ -561,6 +769,10 @@ POSE_CHECKERS = {
     "CobraPose":   check_cobra_pose,
     "DownwardDog": check_downward_dog,
     "GoddessPose": check_goddess_pose,
+    "CorpsePose":      check_corpse_pose,
+    "BridgePose":      check_bridge_pose,
+    "SupineTwistPose": check_supine_twist_pose,
+    "HappyBabyPose":   check_happy_baby_pose,
 }
 
 
