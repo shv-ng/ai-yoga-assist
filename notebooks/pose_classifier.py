@@ -29,7 +29,7 @@ print('All libraries loaded ✅')
 # In[2]:
 
 
-df = pd.read_csv('../data/poses.csv')
+df = pd.read_csv('../data/poses_full.csv')
 
 feature_cols = [c for c in df.columns if c not in ['frame_id', 'sequence_id', 'label']]
 
@@ -284,7 +284,7 @@ print(classification_report(
 # Per-Class F1-Score Bar Chart
 from sklearn.metrics import f1_score
 
-f1_scores = f1_score(y_true, y_pred, average=None)
+f1_scores = f1_score(y_true, y_pred, average=None, labels=range(len(le.classes_)))
 
 plt.figure(figsize=(10, 5))
 bars = plt.bar(le.classes_, f1_scores, color='steelblue', edgecolor='black')
@@ -305,7 +305,7 @@ plt.show()
 
 # ## Save Model & Encoder
 
-# In[ ]:
+# In[12]:
 
 
 os.makedirs('../models', exist_ok=True)
@@ -321,7 +321,7 @@ print('Encoder saved → ../models/label_encoder.pkl')
 
 # ## Export to TFLite (for Raspberry Pi)
 
-# In[ ]:
+# In[13]:
 
 
 # Convert to TFLite with float32 (safe default)
@@ -357,7 +357,7 @@ print('Outputs match:', np.allclose(keras_probs, tflite_probs, atol=1e-4))
 # 
 # Reproduces exactly what `realtime.py` does per frame, so you can verify end-to-end before touching the camera.
 
-# In[ ]:
+# In[14]:
 
 
 CONFIDENCE_THRESHOLD = 0.6
@@ -388,7 +388,7 @@ for name, prob in sorted(zip(le.classes_, probs), key=lambda x: -x[1]):
     print(f'  {name:<15} {prob*100:5.1f}%  {bar}')
 
 
-# In[ ]:
+# In[15]:
 
 
 get_ipython().system('jupyter nbconvert --to script pose_classifier.ipynb')

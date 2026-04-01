@@ -1,14 +1,3 @@
-**CHUNK 1 — Data Pipeline (do this first, everything depends on it)**
-
-- Find and download kaggle datasets that have the 10 poses (or at least the 4 missing ones)
-- Write a script to convert kaggle data (likely images or csvs) into our landmark format using mediapipe, so it matches what collect_data.py produces
-- Merge kaggle landmarks + our custom dataset into one poses.csv
-- Since our custom data is small, add augmentation (small rotations, flips, slight noise) so it doesn't get drowned out
-- Make sure all 10 pose labels are present and balanced enough
-- Verify the sequence_id grouping still works after merging so train/test split has no leakage
-
----
-
 **CHUNK 2 — Missing Pose Corrections**
 
 - Write check_corpse_pose() in corrections.py
@@ -26,15 +15,6 @@
 - Remove the dead unused line in session_logger.py get_live_stats
 - Remove the debug frame counter and probability printer from realtime.py
 - Remove the stray `import sys` inside the frame loop in realtime.py
-
----
-
-**CHUNK 4 — Retrain the Model**
-
-- Retrain pose_classifier notebook with the new full 10-pose dataset
-- Make sure normalization in notebook exactly matches pipeline.py (it already does, just verify after any changes)
-- Save new .h5 and label_encoder.pkl
-- Evaluate: confusion matrix, per-class F1, check all 10 poses have decent scores
 
 ---
 
@@ -98,6 +78,6 @@ Client voice:
 
 **Order to do these:**
 
-1 → 4 → 2 → 3 → 5 → 6 → 7 → 8
+2 → 3 → 5 → 6 → 7 → 8
 
 Data first, then retrain, then fix corrections, then fix bugs, then build new arch, then docker, then packaging, then cleanup.
