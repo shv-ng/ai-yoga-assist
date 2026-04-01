@@ -27,6 +27,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="AI Yoga Assist Client")
     parser.add_argument("--server", type=str, default="http://localhost:8000", help="Server URL")
     parser.add_argument("--camera", type=int, default=0, help="Camera index")
+    parser.add_argument("--lang", type=str, choices=["en", "hi"], default="en", help="Voice language")
     return parser.parse_args()
 
 def main():
@@ -39,7 +40,7 @@ def main():
     )
     
     # Initialize Feedback Manager (Local Voice)
-    fm = FeedbackManager(cooldown_seconds=12.0, tick_seconds=5.0)
+    fm = FeedbackManager(cooldown_seconds=12.0, tick_seconds=5.0, lang=args.lang)
     fm.start()
     
     cap = cv2.VideoCapture(args.camera)
@@ -97,6 +98,11 @@ def main():
                 
                 if not all_visible:
                     status_msg = f"Step into frame - {missing_part} not visible"
+                    # FIX: Voice feedback for visibility
+                    msg = f"Step into frame, {missing_part} not visible"
+                    if args.lang == "hi":
+                        msg = f"frame में आएं, आपका {missing_part} नहीं दिख रहा"
+                    fm.update([{"key": "frame_visibility", "message": msg, "severity": 3}])
                 else:
                     # Extract landmarks as list of [x, y, z]
                     lm_list = [[lm.x, lm.y, lm.z] for lm in landmarks]
@@ -120,7 +126,16 @@ def main():
                             if is_correct:
                                 fm.update_good()
                             else:
-                                fm.update(corrections)
+                                # HINDI SUPPORT: Use message_hi if lang is hi
+                                processed_corrections = []
+                                for c in corrections:
+                                    msg = c["message_hi"] if args.lang == "hi" and "message_hi" in c else c["message"]
+                                    processed_corrections.append({
+                                        "key": c["key"],
+                                        "message": msg,
+                                        "severity": c["severity"]
+                                    })
+                                fm.update(processed_corrections)
                         else:
                             status_msg = f"Server Error: {response.status_code}"
                     except requests.exceptions.RequestException:
@@ -128,6 +143,11 @@ def main():
 
             else:
                 status_msg = "No body detected"
+                # FIX: Voice feedback for no body
+                msg = "come into frame"
+                if args.lang == "hi":
+                    msg = "कोई body नहीं मिली, frame में आएं"
+                fm.update([{"key": "no_body", "message": msg, "severity": 3}])
 
             # ── Drawing ───────────────────────────────────────────────────────
             
@@ -138,14 +158,15 @@ def main():
                 cv2.putText(frame, status_msg, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
             
             # Pose info
-            cv2.putText(frame, f"Pose: {pose_label} ({confidence:.1%})", (10, 90), 
+            cv2.putText(frame, f"Pose: {pose_label} ({confidence:.1%}) | Lang: {args.lang.upper()}", (10, 90), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
             # Draw up to 3 corrections
             for i, corr in enumerate(corrections[:3]):
                 color = COLOR_MAP.get(corr["severity"], (255, 255, 255))
                 y_pos = 120 + i * 30
-                cv2.putText(frame, f"! {corr['message']}", (10, y_pos), 
+                msg = corr["message_hi"] if args.lang == "hi" and "message_hi" in corr else corr["message"]
+                cv2.putText(frame, f"! {msg}", (10, y_pos), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
             # Voice feedback status
@@ -154,8 +175,12 @@ def main():
 
             cv2.imshow("AI Yoga Assist Client", frame)
 
-            if cv2.waitKey(1) & 0xFF == 27:  # ESC
+            key = cv2.waitKey(1) & 0xFF
+            if key == 27:  # ESC
                 break
+            elif key == ord('h') or key == ord('H'):
+                args.lang = "hi" if args.lang == "en" else "en"
+                fm.set_lang(args.lang)
 
     finally:
         fm.stop()

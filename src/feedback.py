@@ -49,9 +49,11 @@ class FeedbackManager:
         self,
         cooldown_seconds: float = 10.0,
         tick_seconds:     float = 5.0,
+        lang:             str = "en",
     ):
         self.cooldown_seconds = cooldown_seconds
         self.tick_seconds     = tick_seconds
+        self.lang             = lang
 
         self._cooldowns:    dict[str, float]  = {}
         self._pending:      list              = []   # heapq
@@ -75,13 +77,19 @@ class FeedbackManager:
             daemon=True,
         )
         self._speak_thread.start()
-        logging.info("FeedbackManager started (tick=%.1fs)", self.tick_seconds)
+        logging.info("FeedbackManager started (tick=%.1fs, lang=%s)", self.tick_seconds, self.lang)
 
     def stop(self):
         self._stop_event.set()
         if self._speak_thread:
             self._speak_thread.join(timeout=5)
         logging.info("FeedbackManager stopped")
+
+    def set_lang(self, lang: str):
+        """Switch language dynamically."""
+        with self._lock:
+            self.lang = lang
+            logging.info("FeedbackManager language switched to %s", lang)
 
     def update(self, corrections: list):
         """
@@ -126,7 +134,10 @@ class FeedbackManager:
                     self._good_pending = False
                     last_good = self._cooldowns.get("__good__", 0.0)
                     if now - last_good >= self.cooldown_seconds:
-                        message = "Good form! Hold this position."
+                        if self.lang == "hi":
+                            message = "बहुत अच्छे! इसी स्थिति में रहें।"
+                        else:
+                            message = "Good form! Hold this position."
                         self._cooldowns["__good__"] = now
 
                 else:
@@ -167,7 +178,11 @@ class FeedbackManager:
         Speak text using piper-tts via subprocess.
         Pipes text to piper, outputs to a temp wav file, and plays with aplay.
         """
-        command = f"echo '{text}' | piper --model models/piper/en_US-lessac-medium.onnx --output_file /tmp/speak.wav && aplay /tmp/speak.wav"
+        model = "models/piper/en_US-lessac-medium.onnx"
+        if self.lang == "hi":
+            model = "models/piper/hi_IN-pratham-medium.onnx"
+            
+        command = f"echo '{text}' | piper --model {model} --output_file /tmp/speak.wav && aplay /tmp/speak.wav"
         
         try:
             subprocess.run(command, shell=True, check=True, capture_output=True)
