@@ -771,7 +771,7 @@ POSE_CHECKERS = {
     "GoddessPose": check_goddess_pose,
     "CorpsePose":      check_corpse_pose,
     "BridgePose":      check_bridge_pose,
-    "SupineTwistPose": check_supine_twist_pose,
+    "SupineTwist": check_supine_twist_pose,
     "HappyBabyPose":   check_happy_baby_pose,
 }
 

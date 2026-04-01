@@ -20,7 +20,7 @@ def start_collection(csv_path="../data/poses.csv"):
         "GoddessPose",
         "CorpsePose",
         "BridgePose",
-        "SupineTwistPose",
+        "SupineTwist",
         "HappyBabyPose",
     ]
     CSV_FILE = csv_path
