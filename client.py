@@ -65,6 +65,17 @@ def main():
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = mp_pose.process(rgb_frame)
 
+            # Draw landmarks (skeleton) on frame
+            if results.pose_landmarks:
+                mp_drawing = mp.solutions.drawing_utils
+                mp_drawing_styles = mp.solutions.drawing_styles
+                mp_drawing.draw_landmarks(
+                    frame,
+                    results.pose_landmarks,
+                    mp.solutions.pose.POSE_CONNECTIONS,
+                    landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
+                )
+
             status_msg = ""
             pose_label = "None"
             confidence = 0.0

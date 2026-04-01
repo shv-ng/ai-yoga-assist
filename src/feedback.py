@@ -1,26 +1,15 @@
 """
 Priority-queue based voice feedback manager.
-
-Fix: pyttsx3 engine is created fresh for every utterance and immediately
-destroyed after. This avoids the well-known pyttsx3 threading bug where
-runAndWait() deadlocks after a few calls when the engine is reused across
-multiple speak() invocations on a background thread.
+Uses piper-tts for high-quality local voice synthesis.
 """
 
 import heapq
 import threading
 import time
 import logging
-
-try:
-    import pyttsx3
-    TTS_AVAILABLE = True
-except ImportError:
-    TTS_AVAILABLE = False
-    logging.warning(
-        "pyttsx3 not installed — voice output disabled. Run: pip install pyttsx3"
-    )
-
+import subprocess
+import tempfile
+import os
 
 # ─────────────────────────────────────────────
 #  CorrectionEntry
@@ -46,7 +35,7 @@ class FeedbackManager:
 
     Every tick_seconds the speaker thread picks the highest-severity
     pending correction that is still active and not on cooldown, speaks
-    it once using a fresh TTS engine, then waits for the next tick.
+    it once using piper-tts, then waits for the next tick.
 
     Parameters
     ----------
@@ -54,23 +43,15 @@ class FeedbackManager:
         How long before the same correction key can be spoken again.
     tick_seconds : float
         Fixed interval between voice feedback attempts (default 5 s).
-    rate : int
-        TTS speech rate (words per minute).
-    volume : float
-        TTS volume 0.0 – 1.0.
     """
 
     def __init__(
         self,
         cooldown_seconds: float = 10.0,
         tick_seconds:     float = 5.0,
-        rate:             int   = 155,
-        volume:           float = 0.9,
     ):
         self.cooldown_seconds = cooldown_seconds
         self.tick_seconds     = tick_seconds
-        self._rate            = rate
-        self._volume          = volume
 
         self._cooldowns:    dict[str, float]  = {}
         self._pending:      list              = []   # heapq
@@ -183,26 +164,14 @@ class FeedbackManager:
 
     def _speak(self, text: str):
         """
-        Speak text using a brand-new pyttsx3 engine instance.
-
-        A fresh engine is created, used once, and immediately stopped.
-        This is intentional — reusing a single engine across calls causes
-        pyttsx3 to deadlock silently after a few utterances on a background
-        thread, which is exactly the "voice stops after a while" bug.
+        Speak text using piper-tts via subprocess.
+        Pipes text to piper, outputs to a temp wav file, and plays with aplay.
         """
-        if not TTS_AVAILABLE:
-            print(f"[VOICE] {text}")
-            return
-
+        command = f"echo '{text}' | piper --model models/piper/en_US-lessac-medium.onnx --output_file /tmp/speak.wav && aplay /tmp/speak.wav"
+        
         try:
-            engine = pyttsx3.init()
-            engine.setProperty("rate",   self._rate)
-            engine.setProperty("volume", self._volume)
-            engine.say(text)
-            engine.runAndWait()
-            engine.stop()
+            subprocess.run(command, shell=True, check=True, capture_output=True)
         except Exception as e:
-            logging.warning("TTS error: %s", e)
-            # If pyttsx3 fails entirely, fall back to print so the
-            # developer can still see what would have been spoken.
+            logging.warning("Piper TTS error: %s", e)
+            # Fallback to print if synthesis fails
             print(f"[VOICE] {text}")

@@ -3,12 +3,14 @@ name = "yoga-project"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "fastapi[standard]>=0.135.2",
     "jupyterlab>=4.5.4",
     "mediapipe>=0.10.14",
     "opencv-python>=4.12.0.88",
+    "pathvalidate>=3.3.1",
+    "piper-tts>=1.4.1",
     "pyttsx3>=2.99",
     "scikit-learn>=1.7.2",
     "tensorflow>=2.19.1",
