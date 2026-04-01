@@ -23,6 +23,49 @@ COLOR_MAP = {
     1: (0, 255, 255),  # Yellow (Severity 1)
 }
 
+POSE_DESCRIPTIONS = {
+    "TreePose": {
+        "en": "To get into Tree Pose, stand on one leg and place the other foot on your inner thigh.",
+        "hi": "Tree Pose mein aane ke liye, ek pair par khade ho jayein aur doosre pair ko apni jaangh par rakhein."
+    },
+    "ChairPose": {
+        "en": "To get into Chair Pose, bend your knees and sink your hips back as if sitting in a chair.",
+        "hi": "Chair Pose mein aane ke liye, apne ghutno ko modein aur hips ko peeche jhukayein jaise chair par baithe hon."
+    },
+    "WarriorPose": {
+        "en": "To get into Warrior 2, step your feet wide, bend your front knee, and extend your arms out.",
+        "hi": "Warrior 2 mein aane ke liye, apne pairon ko chaudha failayein, agle ghutne ko modein aur apne haath bahar failayein."
+    },
+    "CobraPose": {
+        "en": "To get into Cobra Pose, lie on your stomach and lift your chest off the floor using your back muscles.",
+        "hi": "Cobra Pose mein aane ke liye, apne pet ke bal letein aur apni chest ko farsh se upar uthayein."
+    },
+    "DownwardDog": {
+        "en": "To get into Downward Dog, press your hands and feet into the floor and lift your hips toward the ceiling.",
+        "hi": "Downward Dog mein aane ke liye, apne haathon aur pairon ko farsh par dabayein aur apne hips ko chhat ki ore uthayein."
+    },
+    "GoddessPose": {
+        "en": "To get into Goddess Pose, step your feet wide, turn your toes out, and bend your knees into a wide squat.",
+        "hi": "Goddess Pose mein aane ke liye, apne pairon ko chaudha failayein, toes ko bahar modein aur ghutno ko modkar squat karein."
+    },
+    "CorpsePose": {
+        "en": "To get into Corpse Pose, lie flat on your back and relax your entire body.",
+        "hi": "Corpse Pose mein aane ke liye, apni peeth ke bal letein aur apne pure sharir ko relax karein."
+    },
+    "BridgePose": {
+        "en": "To get into Bridge Pose, lie on your back, bend your knees, and lift your hips off the floor.",
+        "hi": "Bridge Pose mein aane ke liye, apni peeth ke bal letein, ghutno ko modein aur apne hips ko farsh se upar uthayein."
+    },
+    "SupineTwist": {
+        "en": "To get into Supine Twist, lie on your back and drop one knee over to the opposite side.",
+        "hi": "Supine Twist mein aane ke liye, apni peeth ke bal letein aur ek ghutne ko doosri side jhukayein."
+    },
+    "HappyBabyPose": {
+        "en": "To get into Happy Baby, lie on your back, pull your knees to your chest, and hold the outside of your feet.",
+        "hi": "Happy Baby mein aane ke liye, apni peeth ke bal letein, ghutno ko chest tak layein aur apne pairon ke bahari hisse ko pakdein."
+    },
+}
+
 def parse_args():
     parser = argparse.ArgumentParser(description="AI Yoga Assist Client")
     parser.add_argument("--server", type=str, default="http://localhost:8000", help="Server URL")
@@ -126,7 +169,9 @@ def main():
                             
                             # Announcement on pose transition
                             if pose_label != "None" and pose_label != last_pose_label:
-                                fm.speak_immediate(pose_label)
+                                desc = POSE_DESCRIPTIONS.get(pose_label, {})
+                                msg = desc.get(args.lang, pose_label)
+                                fm.speak_immediate(msg)
                                 last_pose_label = pose_label
 
                             # Update FeedbackManager
