@@ -12,11 +12,17 @@ wheels/
 .ruff_cache
 *.mp4
 
-logs
+logs/
+**/.ipynb_checkpoints
 
 data/image/
 voice_files/
+<<<<<<< HEAD
 ./notebooks/
 **/.ipynb_checkpoints/
 models/piper/*.onnx
 models/piper/*.onnx.json
+=======
+models/piper/
+
+>>>>>>> 68ffc61 (cleanup and push fresh)
