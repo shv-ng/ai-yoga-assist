@@ -18,3 +18,5 @@ data/image/
 voice_files/
 ./notebooks/
 **/.ipynb_checkpoints/
+models/piper/*.onnx
+models/piper/*.onnx.json
