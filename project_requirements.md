@@ -59,15 +59,39 @@ The system must operate in real time, ensuring low latency and high usability du
 The system must support classification of the following **10 poses**:
 
 * Tree Pose (Vrikshasana)
+    https://www.kaggle.com/datasets/niharika41298/yoga-poses-dataset
+    https://www.kaggle.com/datasets/sumanthvrao/yoga-poses
+    https://www.kaggle.com/datasets/bharatwajc/yoga-dataset-11-poses
+    https://www.kaggle.com/datasets/tr1gg3rtrash/yoga-posture-dataset/data
 * Chair Pose (Utkatasana)
+    https://www.kaggle.com/datasets/bharatwajc/yoga-dataset-11-poses
+    https://www.kaggle.com/datasets/tr1gg3rtrash/yoga-posture-dataset/data
 * Warrior Pose (Virabhadrasana)
+    https://www.kaggle.com/datasets/tr1gg3rtrash/yoga-posture-dataset/data
+    https://www.kaggle.com/datasets/niharika41298/yoga-poses-dataset
+    https://www.kaggle.com/datasets/sumanthvrao/yoga-poses
+    https://www.kaggle.com/datasets/bharatwajc/yoga-dataset-11-poses
 * Cobra Pose (Bhujangasana)
+    https://www.kaggle.com/datasets/shrutisaxena/yoga-pose-image-classification-dataset
 * Downward Dog (Adho Mukha Svanasana)
+    https://www.kaggle.com/datasets/shrutisaxena/yoga-pose-image-classification-dataset
+    https://www.kaggle.com/datasets/niharika41298/yoga-poses-dataset
+    https://www.kaggle.com/datasets/sumanthvrao/yoga-poses
+    https://www.kaggle.com/datasets/bharatwajc/yoga-dataset-11-poses
+    https://www.kaggle.com/datasets/tr1gg3rtrash/yoga-posture-dataset/data
 * Goddess Pose (Utkata Konasana)
+    https://www.kaggle.com/datasets/niharika41298/yoga-poses-dataset
+    https://www.kaggle.com/datasets/bharatwajc/yoga-dataset-11-poses
+    https://www.kaggle.com/datasets/tr1gg3rtrash/yoga-posture-dataset/data
 * Corpse Pose (Savasana)
+    https://www.kaggle.com/datasets/bharatwajc/yoga-dataset-11-poses
 * Bridge Pose (Setu Bandhasana)
+    https://www.kaggle.com/datasets/sumanthvrao/yoga-poses
+    https://www.kaggle.com/datasets/tr1gg3rtrash/yoga-posture-dataset/data
 * Supine Twist (Supta Matsyendrasana)
+    https://www.kaggle.com/datasets/shrutisaxena/yoga-pose-image-classification-dataset
 * Happy Baby Pose (Ananda Balasana)
+    https://www.kaggle.com/datasets/shrutisaxena/yoga-pose-image-classification-dataset
 
 ---
 

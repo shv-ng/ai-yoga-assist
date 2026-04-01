@@ -13,3 +13,5 @@ wheels/
 *.mp4
 
 logs
+
+data/image/
