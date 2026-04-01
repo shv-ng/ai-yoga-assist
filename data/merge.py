@@ -5,19 +5,19 @@ import uuid
 SOURCE_ROOT = "./"
 TARGET_ROOT = "organized_dataset"
 
+
 def normalize(name):
     return name.lower().replace("_", " ").replace("-", " ").strip()
+
 
 mapping = {
     # Tree
     "tree": "treepose",
     "vriksasana": "treepose",
     "vrikshasana": "treepose",
-
     # Chair
     "utkatasana": "chairpose",
     "chair": "chairpose",
-
     # Warrior
     "warrior": "warriorpose",
     "warrior1": "warriorpose",
@@ -27,33 +27,26 @@ mapping = {
     "virabhadrasana i": "warriorpose",
     "virabhadrasana ii": "warriorpose",
     "virabhadrasana iii": "warriorpose",
-
     # Cobra
     "bhujangasana": "cobrapose",
     "cobra": "cobrapose",
-
     # Downward Dog
     "downdog": "downwarddog",
     "downward dog": "downwarddog",
     "adho mukha svanasana": "downwarddog",
-
     # Goddess
     "goddess": "goddesspose",
     "utkata konasana": "goddesspose",
-
     # Corpse
     "savasana": "corpsepose",
     "sivasana": "corpsepose",
-
     # Bridge
     "bridge": "bridgepose",
     "setu bandha sarvangasana": "bridgepose",
-
     # Supine Twist
     "supta matsyendrasana": "supinetwist",
-
     # Happy Baby
-    "ananda balasana": "happybabypose"
+    "ananda balasana": "happybabypose",
 }
 
 moved = 0

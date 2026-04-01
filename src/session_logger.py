@@ -20,7 +20,6 @@ from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass, field
 
-
 LOGS_DIR = Path(__file__).parent.parent / "logs"
 
 
@@ -28,21 +27,22 @@ LOGS_DIR = Path(__file__).parent.parent / "logs"
 #  Data structures
 # ─────────────────────────────────────────────
 
+
 @dataclass
 class CorrectionEvent:
-    key:       str
-    message:   str
-    severity:  int
-    timestamp: float   # seconds since session start
-    resolved:  bool = False
+    key: str
+    message: str
+    severity: int
+    timestamp: float  # seconds since session start
+    resolved: bool = False
     resolved_at: float | None = None
 
 
 @dataclass
 class PoseInterval:
-    pose:       str
-    started_at: float          # seconds since session start
-    ended_at:   float | None = None
+    pose: str
+    started_at: float  # seconds since session start
+    ended_at: float | None = None
     corrections: list = field(default_factory=list)  # list of CorrectionEvent
 
     @property
@@ -54,6 +54,7 @@ class PoseInterval:
 # ─────────────────────────────────────────────
 #  SessionLogger
 # ─────────────────────────────────────────────
+
 
 class SessionLogger:
     """
@@ -74,9 +75,9 @@ class SessionLogger:
     """
 
     def __init__(self, logs_dir: Path = LOGS_DIR):
-        self._logs_dir   = Path(logs_dir)
+        self._logs_dir = Path(logs_dir)
         self._start_time: float | None = None
-        self._session_id: str  = ""
+        self._session_id: str = ""
 
         self._pose_intervals: list[PoseInterval] = []
         self._current_interval: PoseInterval | None = None
@@ -90,8 +91,8 @@ class SessionLogger:
     # ── Lifecycle ─────────────────────────────
 
     def start(self):
-        self._start_time  = time.time()
-        self._session_id  = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self._start_time = time.time()
+        self._session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self._logs_dir.mkdir(parents=True, exist_ok=True)
         logging.info(f"Session {self._session_id} started")
 
@@ -132,8 +133,7 @@ class SessionLogger:
 
             # Open new interval
             self._current_interval = PoseInterval(
-                pose=pose_label,
-                started_at=self._elapsed()
+                pose=pose_label, started_at=self._elapsed()
             )
 
     def log_corrections(self, corrections: list):
@@ -149,7 +149,7 @@ class SessionLogger:
         if self._start_time is None:
             return
 
-        now          = self._elapsed()
+        now = self._elapsed()
         current_keys = {c["key"] for c in corrections}
 
         # Resolve corrections that are no longer active
@@ -178,7 +178,7 @@ class SessionLogger:
         """Mark a correction as resolved (pose improved)."""
         event = self._active_corrections.pop(key, None)
         if event:
-            event.resolved    = True
+            event.resolved = True
             event.resolved_at = self._elapsed()
 
     # ── Summary / stats ───────────────────────
@@ -191,13 +191,15 @@ class SessionLogger:
         if self._start_time is None:
             return {}
 
-        elapsed     = self._elapsed()
+        elapsed = self._elapsed()
         len(self._pose_intervals) + (1 if self._current_interval else 0)
 
         # Time per pose
         time_per_pose: dict[str, float] = {}
         for interval in self._pose_intervals:
-            time_per_pose[interval.pose] = time_per_pose.get(interval.pose, 0) + interval.duration
+            time_per_pose[interval.pose] = (
+                time_per_pose.get(interval.pose, 0) + interval.duration
+            )
         if self._current_interval:
             p = self._current_interval.pose
             time_per_pose[p] = time_per_pose.get(p, 0) + self._current_interval.duration
@@ -209,16 +211,16 @@ class SessionLogger:
         top_correction = max(freq, key=freq.get) if freq else None
 
         return {
-            "elapsed_seconds":   round(elapsed, 1),
+            "elapsed_seconds": round(elapsed, 1),
             "total_corrections": len(self._all_corrections),
             "active_corrections": len(self._active_corrections),
-            "time_per_pose":     {k: round(v, 1) for k, v in time_per_pose.items()},
-            "top_correction":    top_correction,
+            "time_per_pose": {k: round(v, 1) for k, v in time_per_pose.items()},
+            "top_correction": top_correction,
         }
 
     def _build_summary(self) -> dict:
         """Full session summary for JSON output."""
-        elapsed  = self._elapsed()
+        elapsed = self._elapsed()
         freq: dict[str, int] = {}
         resolved_count = 0
 
@@ -233,28 +235,34 @@ class SessionLogger:
             p = interval.pose
             if p not in pose_breakdown:
                 pose_breakdown[p] = {"total_seconds": 0, "corrections_fired": 0}
-            pose_breakdown[p]["total_seconds"]     += round(interval.duration, 2)
+            pose_breakdown[p]["total_seconds"] += round(interval.duration, 2)
             pose_breakdown[p]["corrections_fired"] += len(interval.corrections)
         if self._current_interval:
             p = self._current_interval.pose
             if p not in pose_breakdown:
                 pose_breakdown[p] = {"total_seconds": 0, "corrections_fired": 0}
-            pose_breakdown[p]["total_seconds"]     += round(self._current_interval.duration, 2)
-            pose_breakdown[p]["corrections_fired"] += len(self._current_interval.corrections)
+            pose_breakdown[p]["total_seconds"] += round(
+                self._current_interval.duration, 2
+            )
+            pose_breakdown[p]["corrections_fired"] += len(
+                self._current_interval.corrections
+            )
 
         return {
-            "session_id":         self._session_id,
-            "duration_seconds":   round(elapsed, 2),
-            "total_corrections":  len(self._all_corrections),
+            "session_id": self._session_id,
+            "duration_seconds": round(elapsed, 2),
+            "total_corrections": len(self._all_corrections),
             "resolved_corrections": resolved_count,
-            "resolution_rate":    round(resolved_count / max(len(self._all_corrections), 1), 2),
+            "resolution_rate": round(
+                resolved_count / max(len(self._all_corrections), 1), 2
+            ),
             "correction_frequency": dict(sorted(freq.items(), key=lambda x: -x[1])),
-            "pose_breakdown":     pose_breakdown,
+            "pose_breakdown": pose_breakdown,
             "pose_intervals": [
                 {
-                    "pose":     iv.pose,
-                    "start":    round(iv.started_at, 2),
-                    "end":      round(iv.ended_at, 2) if iv.ended_at else None,
+                    "pose": iv.pose,
+                    "start": round(iv.started_at, 2),
+                    "end": round(iv.ended_at, 2) if iv.ended_at else None,
                     "duration": round(iv.duration, 2),
                     "n_corrections": len(iv.corrections),
                 }

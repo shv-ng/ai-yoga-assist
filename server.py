@@ -1,7 +1,7 @@
 """
 server.py
 ---------
-FastAPI server — receives landmarks from the client, runs the 
+FastAPI server — receives landmarks from the client, runs the
 yoga-assist pipeline, and returns pose classification and corrections.
 """
 
@@ -21,6 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.post("/process")
 async def process(request: Request):
     """Expects JSON body: {"landmarks": [[x,y,z], ...33 items...]}"""
@@ -32,10 +33,12 @@ async def process(request: Request):
     result = run_pipeline(landmarks)
     return result
 
+
 @app.get("/health")
 def health():
     """Quick liveness probe."""
     return {"status": "ok"}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

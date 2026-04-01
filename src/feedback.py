@@ -8,27 +8,29 @@ import threading
 import time
 import logging
 import subprocess
-import tempfile
-import os
 
 # ─────────────────────────────────────────────
 #  CorrectionEntry
 # ─────────────────────────────────────────────
 
+
 class CorrectionEntry:
-    def __init__(self, key: str, message_en: str, severity: int, message_hi: str = None):
-        self.key        = key
+    def __init__(
+        self, key: str, message_en: str, severity: int, message_hi: str = None
+    ):
+        self.key = key
         self.message_en = message_en
         self.message_hi = message_hi
-        self.severity   = severity
+        self.severity = severity
 
     def __lt__(self, other):
-        return self.severity > other.severity   # max-heap on severity
+        return self.severity > other.severity  # max-heap on severity
 
 
 # ─────────────────────────────────────────────
 #  FeedbackManager
 # ─────────────────────────────────────────────
+
 
 class FeedbackManager:
     """
@@ -49,21 +51,21 @@ class FeedbackManager:
     def __init__(
         self,
         cooldown_seconds: float = 5.0,
-        tick_seconds:     float = 2.0,
-        lang:             str = "en",
+        tick_seconds: float = 2.0,
+        lang: str = "en",
     ):
         self.cooldown_seconds = cooldown_seconds
-        self.tick_seconds     = tick_seconds
-        self.lang             = lang
+        self.tick_seconds = tick_seconds
+        self.lang = lang
 
-        self._cooldowns:    dict[str, float]  = {}
-        self._pending:      list              = []   # heapq
-        self._pending_keys: set[str]          = set()
-        self._active_keys:  set[str]          = set()
-        self._good_pending: bool              = False
+        self._cooldowns: dict[str, float] = {}
+        self._pending: list = []  # heapq
+        self._pending_keys: set[str] = set()
+        self._active_keys: set[str] = set()
+        self._good_pending: bool = False
 
-        self._lock        = threading.Lock()
-        self._stop_event  = threading.Event()
+        self._lock = threading.Lock()
+        self._stop_event = threading.Event()
         self._speak_thread: threading.Thread | None = None
 
         self.last_message: str = ""
@@ -78,7 +80,11 @@ class FeedbackManager:
             daemon=True,
         )
         self._speak_thread.start()
-        logging.info("FeedbackManager started (tick=%.1fs, lang=%s)", self.tick_seconds, self.lang)
+        logging.info(
+            "FeedbackManager started (tick=%.1fs, lang=%s)",
+            self.tick_seconds,
+            self.lang,
+        )
 
     def stop(self):
         self._stop_event.set()
@@ -108,13 +114,16 @@ class FeedbackManager:
                 if key not in self._pending_keys:
                     msg_en = c.get("message", "")
                     msg_hi = c.get("message_hi", "")
-                    heapq.heappush(self._pending, CorrectionEntry(key, msg_en, c["severity"], msg_hi))
+                    heapq.heappush(
+                        self._pending,
+                        CorrectionEntry(key, msg_en, c["severity"], msg_hi),
+                    )
                     self._pending_keys.add(key)
 
     def update_good(self):
         """Call when the pose is fully correct."""
         with self._lock:
-            self._active_keys  = set()
+            self._active_keys = set()
             self._good_pending = True
 
     # ── Speaker thread ────────────────────────
@@ -134,7 +143,7 @@ class FeedbackManager:
 
             # ── Pick what to say ──────────────────────────────────────
             message = None
-            now     = time.time()
+            now = time.time()
 
             with self._lock:
                 if self._good_pending:
@@ -170,7 +179,7 @@ class FeedbackManager:
                             message = entry.message_hi
                         else:
                             message = entry.message_en
-                        break   # only one per tick
+                        break  # only one per tick
 
                     # Re-insert cooled-down active entries
                     for e in scratch:
@@ -191,9 +200,9 @@ class FeedbackManager:
         model = "models/piper/en_US-lessac-medium.onnx"
         if self.lang == "hi":
             model = "models/piper/hi_IN-pratham-medium.onnx"
-            
+
         command = f"echo '{text}' | piper --model {model} --output_file /tmp/speak.wav && aplay /tmp/speak.wav"
-        
+
         try:
             subprocess.run(command, shell=True, check=True, capture_output=True)
         except Exception as e:

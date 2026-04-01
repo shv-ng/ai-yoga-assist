@@ -37,12 +37,11 @@ Usage:
 import numpy as np
 from types import SimpleNamespace
 
-
 N_LANDMARKS = 33
 
 # MediaPipe indices used for normalization
-_LEFT_HIP      = 23
-_RIGHT_HIP     = 24
+_LEFT_HIP = 23
+_RIGHT_HIP = 24
 _LEFT_SHOULDER = 11
 _RIGHT_SHOULDER = 12
 
@@ -62,7 +61,7 @@ class LandmarkPipeline:
         if not 0 < smooth_alpha <= 1.0:
             raise ValueError("smooth_alpha must be in (0, 1]")
         self.alpha = smooth_alpha
-        self._ema: np.ndarray | None = None   # shape (N_LANDMARKS, 3)
+        self._ema: np.ndarray | None = None  # shape (N_LANDMARKS, 3)
 
     def reset(self):
         """Call when a new person enters frame or session restarts."""
@@ -83,9 +82,9 @@ class LandmarkPipeline:
         list of SimpleNamespace(x, y, z) — same structure as mediapipe landmarks
         so existing correction functions work without modification.
         """
-        raw = self._to_array(landmarks)           # (33, 3)
-        smoothed = self._smooth(raw)              # (33, 3)
-        normed   = self._normalize(smoothed)      # (33, 3)
+        raw = self._to_array(landmarks)  # (33, 3)
+        smoothed = self._smooth(raw)  # (33, 3)
+        normed = self._normalize(smoothed)  # (33, 3)
         return self._to_landmark_list(normed)
 
     def to_feature_vector(self, processed_landmarks) -> np.ndarray:
@@ -94,8 +93,7 @@ class LandmarkPipeline:
         Shape: (99,)  — 33 landmarks × (x, y, z)
         """
         return np.array(
-            [[lm.x, lm.y, lm.z] for lm in processed_landmarks],
-            dtype=np.float32
+            [[lm.x, lm.y, lm.z] for lm in processed_landmarks], dtype=np.float32
         ).flatten()
 
     def process_for_classify(self, landmarks) -> np.ndarray:
@@ -104,8 +102,8 @@ class LandmarkPipeline:
         Use this to generate the feature vector for the classifier.
         Matches exactly what the notebook did during training.
         """
-        raw    = self._to_array(landmarks)      # (33, 3)
-        normed = self._normalize(raw)           # (33, 3) — no smoothing
+        raw = self._to_array(landmarks)  # (33, 3)
+        normed = self._normalize(raw)  # (33, 3) — no smoothing
         lm_list = self._to_landmark_list(normed)
         return self.to_feature_vector(lm_list)  # (99,) flat array
 
@@ -113,10 +111,7 @@ class LandmarkPipeline:
 
     def _to_array(self, landmarks) -> np.ndarray:
         """MediaPipe landmark list → (33, 3) float32 array."""
-        return np.array(
-            [[lm.x, lm.y, lm.z] for lm in landmarks],
-            dtype=np.float32
-        )
+        return np.array([[lm.x, lm.y, lm.z] for lm in landmarks], dtype=np.float32)
 
     def _smooth(self, raw: np.ndarray) -> np.ndarray:
         """Exponential moving average across frames."""
@@ -138,8 +133,8 @@ class LandmarkPipeline:
         translated = arr - hip_mid
 
         # Torso height for scale
-        shoulder_mid  = (arr[_LEFT_SHOULDER] + arr[_RIGHT_SHOULDER]) / 2.0
-        torso_height  = np.linalg.norm(shoulder_mid - hip_mid)
+        shoulder_mid = (arr[_LEFT_SHOULDER] + arr[_RIGHT_SHOULDER]) / 2.0
+        torso_height = np.linalg.norm(shoulder_mid - hip_mid)
 
         if torso_height < 1e-6:
             # Person not detected properly — return translated but unscaled

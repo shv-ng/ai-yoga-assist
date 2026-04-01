@@ -13,8 +13,8 @@ from src.pipeline import LandmarkPipeline
 from src.corrections import check_pose
 
 # ── Config ────────────────────────────────────────────────────────────────────
-CLASSIFIER_MODEL     = "models/pose_classifier.h5"
-ENCODER_PATH         = "models/label_encoder.pkl"
+CLASSIFIER_MODEL = "models/pose_classifier.h5"
+ENCODER_PATH = "models/label_encoder.pkl"
 CONFIDENCE_THRESHOLD = 0.6
 
 # ── Singletons (initialised once at import time) ──────────────────────────────
@@ -25,6 +25,7 @@ with open(ENCODER_PATH, "rb") as _f:
 _lm_pipeline = LandmarkPipeline(smooth_alpha=0.4)
 
 # ── Public API ────────────────────────────────────────────────────────────────
+
 
 def run_pipeline(landmarks_list: list) -> dict:
     """
@@ -42,17 +43,17 @@ def run_pipeline(landmarks_list: list) -> dict:
     """
     # Convert list of [x,y,z] to numpy array (33, 3)
     landmarks_array = np.array(landmarks_list)
-    
+
     # Create SimpleNamespace objects for LandmarkPipeline (expects .x, .y, .z)
     landmarks = [SimpleNamespace(x=lm[0], y=lm[1], z=lm[2]) for lm in landmarks_array]
 
     # Preprocess
-    feat_vec  = _lm_pipeline.process_for_classify(landmarks)
+    feat_vec = _lm_pipeline.process_for_classify(landmarks)
     processed = _lm_pipeline.process(landmarks)
 
     # Classify
-    probs      = _model.predict(feat_vec.reshape(1, -1), verbose=0)[0]
-    top_idx    = int(np.argmax(probs))
+    probs = _model.predict(feat_vec.reshape(1, -1), verbose=0)[0]
+    top_idx = int(np.argmax(probs))
     confidence = float(probs[top_idx])
 
     if confidence < CONFIDENCE_THRESHOLD:
@@ -61,7 +62,7 @@ def run_pipeline(landmarks_list: list) -> dict:
             "pose": None,
             "confidence": confidence,
             "is_correct": False,
-            "corrections": []
+            "corrections": [],
         }
 
     label = _le.inverse_transform([top_idx])[0]
@@ -71,5 +72,5 @@ def run_pipeline(landmarks_list: list) -> dict:
         "pose": str(label),
         "confidence": confidence,
         "is_correct": bool(is_correct),
-        "corrections": corrections
+        "corrections": corrections,
     }
