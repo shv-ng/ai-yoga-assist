@@ -22,9 +22,10 @@ Each function returns (is_correct: bool, corrections: list[dict])
 
 Every correction dict has:
     {
-        "message":  str,    # human-readable instruction
-        "severity": int,    # 1 (low) | 2 (medium) | 3 (high)
-        "key":      str,    # unique stable id used by FeedbackManager
+        "message":     str,    # human-readable instruction (English)
+        "message_hi":  str,    # human-readable instruction (Hindi)
+        "severity":    int,    # 1 (low) | 2 (medium) | 3 (high)
+        "key":         str,    # unique stable id used by FeedbackManager
     }
 
 Severity guide:
@@ -32,6 +33,10 @@ Severity guide:
     2 — major form issue that reduces effectiveness
     1 — fine-tuning / polish
 """
+
+# Reference translations for client.py (built-in visibility checks):
+# "Please step into frame, your {missing_part} is not visible" -> "कृपया frame में आएं, आपका {missing_part} नहीं दिख रहा है"
+# "Please step into frame, no body detected" -> "कृपया frame में आएं, कोई body नहीं दिख रही है"
 
 import numpy as np
 
@@ -55,8 +60,8 @@ def _lm(lms, idx):
     return lms[idx]
 
 
-def _correction(key, message, severity):
-    return {"key": key, "message": message, "severity": severity}
+def _correction(key, message, message_hi, severity):
+    return {"key": key, "message": message, "message_hi": message_hi, "severity": severity}
 
 
 # ─────────────────────────────────────────────
@@ -94,6 +99,7 @@ def check_tree_pose(landmarks):
         corrections.append(_correction(
             "tree_standing_leg",
             f"Straighten your standing leg (angle: {leg_angle:.0f}°)",
+            f"अपना standing leg सीधा करें (angle: {leg_angle:.0f}°)",
             severity=3,
         ))
 
@@ -105,6 +111,7 @@ def check_tree_pose(landmarks):
         corrections.append(_correction(
             "tree_knee_out",
             "Open your raised knee outward to the side",
+            "अपने उठे हुए knee को side में खोलें",
             severity=2,
         ))
 
@@ -114,6 +121,7 @@ def check_tree_pose(landmarks):
         corrections.append(_correction(
             "tree_foot_height",
             "Raise your foot higher — place it on your inner thigh or calf",
+            "अपना foot और ऊपर उठाएं — इसे अपनी inner thigh या calf पर रखें",
             severity=2,
         ))
 
@@ -121,11 +129,17 @@ def check_tree_pose(landmarks):
     # In normalised space y is more negative as you go up (shoulders ≈ -1)
     if _lm(lms, 15).y > _lm(lms, 11).y - 0.10:
         corrections.append(_correction(
-            "tree_left_arm", "Raise your left arm above your head", severity=1
+            "tree_left_arm", 
+            "Raise your left arm above your head", 
+            "अपना left arm सिर के ऊपर उठाएं",
+            severity=1
         ))
     if _lm(lms, 16).y > _lm(lms, 12).y - 0.10:
         corrections.append(_correction(
-            "tree_right_arm", "Raise your right arm above your head", severity=1
+            "tree_right_arm", 
+            "Raise your right arm above your head", 
+            "अपना right arm सिर के ऊपर उठाएं",
+            severity=1
         ))
 
     # Spine upright — |shoulder_mid_x - hip_mid_x| < 0.12 tu
@@ -135,6 +149,7 @@ def check_tree_pose(landmarks):
         corrections.append(_correction(
             "tree_lean",
             "Stand upright — you're leaning to the side",
+            "सीधे खड़े हों — आप side में झुक रहे हैं",
             severity=2,
         ))
 
@@ -165,12 +180,14 @@ def check_chair_pose(landmarks):
             corrections.append(_correction(
                 f"chair_{label}_knee_bend",
                 f"Bend your {label} knee more — aim for about 90 degrees",
+                f"अपना {label} knee और मोड़ें — लगभग 90 degrees तक लाएं",
                 severity=2,
             ))
         elif angle < 60:
             corrections.append(_correction(
                 f"chair_{label}_knee_deep",
                 f"You're squatting too deep on your {label} side — rise up slightly",
+                f"आप अपने {label} side पर बहुत नीचे झुक रहे हैं — थोड़ा ऊपर उठें",
                 severity=3,
             ))
 
@@ -182,17 +199,24 @@ def check_chair_pose(landmarks):
         corrections.append(_correction(
             "chair_knees_cave",
             "Push your knees outward — keep them in line with your toes",
+            "अपने knees को बाहर की तरफ दबाएं — उन्हें toes की line में रखें",
             severity=3,
         ))
 
     # Arms raised above shoulders by ≥ 0.10 tu
     if _lm(lms, 15).y > _lm(lms, 11).y - 0.10:
         corrections.append(_correction(
-            "chair_left_arm", "Raise your left arm straight overhead", severity=1
+            "chair_left_arm", 
+            "Raise your left arm straight overhead", 
+            "अपना left arm सीधा सिर के ऊपर उठाएं",
+            severity=1
         ))
     if _lm(lms, 16).y > _lm(lms, 12).y - 0.10:
         corrections.append(_correction(
-            "chair_right_arm", "Raise your right arm straight overhead", severity=1
+            "chair_right_arm", 
+            "Raise your right arm straight overhead", 
+            "अपना right arm सीधा सिर के ऊपर उठाएं",
+            severity=1
         ))
 
     # No side lean — tolerance 0.15 tu (generous; some forward lean is correct)
@@ -202,6 +226,7 @@ def check_chair_pose(landmarks):
         corrections.append(_correction(
             "chair_lean",
             "Keep your torso centred — you're leaning to one side",
+            "अपने torso को centre में रखें — आप एक side झुक रहे हैं",
             severity=2,
         ))
 
@@ -241,12 +266,14 @@ def check_warrior_pose(landmarks):
         corrections.append(_correction(
             "warrior_front_knee_bend",
             f"Bend your {front['label']} (front) knee more — aim for 90 degrees",
+            f"अपना {front['label']} (front) knee और मोड़ें — 90 degrees का लक्ष्य रखें",
             severity=2,
         ))
     elif front_angle < 65:
         corrections.append(_correction(
             "warrior_front_knee_over",
             f"Your {front['label']} knee is too far forward — press it back over your ankle",
+            f"आपका {front['label']} knee बहुत आगे है — इसे वापस ankle के ऊपर लाएं",
             severity=3,
         ))
 
@@ -257,6 +284,7 @@ def check_warrior_pose(landmarks):
         corrections.append(_correction(
             "warrior_back_leg",
             f"Straighten your {back['label']} (back) leg fully",
+            f"अपना {back['label']} (back) leg पूरी तरह सीधा करें",
             severity=2,
         ))
 
@@ -268,12 +296,14 @@ def check_warrior_pose(landmarks):
         corrections.append(_correction(
             "warrior_left_arm",
             "Extend your left arm straight out at shoulder height",
+            "अपना left arm shoulder की height पर सीधा बाहर फैलाएं",
             severity=1,
         ))
     if right_wrist_diff > 0.20:
         corrections.append(_correction(
             "warrior_right_arm",
             "Extend your right arm straight out at shoulder height",
+            "अपना right arm shoulder की height पर सीधा बाहर फैलाएं",
             severity=1,
         ))
 
@@ -284,6 +314,7 @@ def check_warrior_pose(landmarks):
         corrections.append(_correction(
             "warrior_arms_wide",
             "Spread your arms wider — reach through your fingertips in both directions",
+            "अपने arms को और चौड़ा फैलाएं — दोनों दिशाओं में fingertips से खिंचाव महसूस करें",
             severity=2,
         ))
 
@@ -294,6 +325,7 @@ def check_warrior_pose(landmarks):
         corrections.append(_correction(
             "warrior_torso_lean",
             "Keep your torso upright — don't lean toward the front leg",
+            "अपने torso को सीधा रखें — front leg की तरफ न झुकें",
             severity=2,
         ))
 
@@ -333,6 +365,7 @@ def check_cobra_pose(landmarks):
         corrections.append(_correction(
             "cobra_chest_lift",
             "Lift your chest higher — press through your palms and open your heart upward",
+            "अपनी chest और ऊपर उठाएं — हथेली से दबाएं और ऊपर की ओर देखें",
             severity=3,
         ))
 
@@ -342,6 +375,7 @@ def check_cobra_pose(landmarks):
         corrections.append(_correction(
             "cobra_shoulders_shrug",
             "Roll your shoulders back and down — away from your ears",
+            "अपने shoulders को पीछे और नीचे रोल करें — कानों से दूर",
             severity=2,
         ))
 
@@ -352,12 +386,14 @@ def check_cobra_pose(landmarks):
         corrections.append(_correction(
             "cobra_left_elbow",
             "Draw your left elbow in closer to your body",
+            "अपने left elbow को शरीर के करीब लाएं",
             severity=1,
         ))
     if right_elbow_flare > 0.25:
         corrections.append(_correction(
             "cobra_right_elbow",
             "Draw your right elbow in closer to your body",
+            "अपने right elbow को शरीर के करीब लाएं",
             severity=1,
         ))
 
@@ -367,6 +403,7 @@ def check_cobra_pose(landmarks):
         corrections.append(_correction(
             "cobra_shoulder_tilt",
             "Level your shoulders — you're tilting to one side",
+            "अपने shoulders बराबर रखें — आप एक side झुक रहे हैं",
             severity=2,
         ))
 
@@ -375,6 +412,7 @@ def check_cobra_pose(landmarks):
         corrections.append(_correction(
             "cobra_head_drop",
             "Lift your head and gaze forward or slightly upward",
+            "अपना head उठाएं और सामने या थोड़ा ऊपर देखें",
             severity=2,
         ))
 
@@ -413,6 +451,7 @@ def check_downward_dog(landmarks):
         corrections.append(_correction(
             "ddog_hips_high",
             "Lift your hips higher toward the ceiling — press back and up",
+            "अपने hips को छत की ओर ऊपर उठाएं — पीछे और ऊपर की तरफ दबाएं",
             severity=3,
         ))
 
@@ -426,6 +465,7 @@ def check_downward_dog(landmarks):
             corrections.append(_correction(
                 f"ddog_{label}_arm",
                 f"Straighten your {label} arm fully — no bend at the elbow",
+                f"अपना {label} arm पूरी तरह सीधा करें — elbow से न मोड़ें",
                 severity=2,
             ))
 
@@ -439,6 +479,7 @@ def check_downward_dog(landmarks):
             corrections.append(_correction(
                 f"ddog_{label}_knee",
                 f"Try to straighten your {label} leg — work on pressing the heel down",
+                f"अपना {label} leg सीधा करने की कोशिश करें — heel को नीचे दबाने का प्रयास करें",
                 severity=1,
             ))
 
@@ -448,6 +489,7 @@ def check_downward_dog(landmarks):
         corrections.append(_correction(
             "ddog_head_crane",
             "Relax your neck — let your head hang freely between your arms",
+            "अपनी neck को relax करें — अपने head को arms के बीच ढीला छोड़ दें",
             severity=1,
         ))
 
@@ -456,6 +498,7 @@ def check_downward_dog(landmarks):
         corrections.append(_correction(
             "ddog_shoulder_level",
             "Level your shoulders — distribute weight equally through both hands",
+            "अपने shoulders बराबर रखें — दोनों हाथों पर बराबर वजन दें",
             severity=2,
         ))
 
@@ -488,12 +531,14 @@ def check_goddess_pose(landmarks):
             corrections.append(_correction(
                 f"goddess_{label}_knee_bend",
                 f"Bend your {label} knee more — sink deeper into the pose",
+                f"अपना {label} knee और मोड़ें — pose में और गहराई से बैठें",
                 severity=2,
             ))
         elif angle < 65:
             corrections.append(_correction(
                 f"goddess_{label}_knee_deep",
                 f"Rise up slightly on your {label} side — you're too deep",
+                f"अपने {label} side पर थोड़ा ऊपर उठें — आप बहुत ज्यादा नीचे हैं",
                 severity=3,
             ))
 
@@ -504,6 +549,7 @@ def check_goddess_pose(landmarks):
         corrections.append(_correction(
             "goddess_knees_cave",
             "Press your knees outward — open them wide over your toes",
+            "अपने knees को बाहर की तरफ दबाएं — उन्हें toes के ऊपर चौड़ा खोलें",
             severity=3,
         ))
 
@@ -513,6 +559,7 @@ def check_goddess_pose(landmarks):
         corrections.append(_correction(
             "goddess_stance_wide",
             "Widen your stance — step your feet further apart",
+            "अपना stance और चौड़ा करें — पैरों को और दूर ले जाएं",
             severity=2,
         ))
 
@@ -523,6 +570,7 @@ def check_goddess_pose(landmarks):
         corrections.append(_correction(
             "goddess_torso_lean",
             "Keep your torso upright — stack your shoulders over your hips",
+            "अपने torso को सीधा रखें — shoulders को hips के ऊपर रखें",
             severity=2,
         ))
 
@@ -536,6 +584,7 @@ def check_goddess_pose(landmarks):
             corrections.append(_correction(
                 f"goddess_{label}_elbow",
                 f"Raise your {label} elbow to shoulder height — goal-post arms",
+                f"अपना {label} elbow shoulder की height तक उठाएं — goal-post arms बनाएं",
                 severity=1,
             ))
 
@@ -544,6 +593,7 @@ def check_goddess_pose(landmarks):
             corrections.append(_correction(
                 f"goddess_{label}_wrist",
                 f"Bend your {label} elbow to 90 degrees — wrist directly above elbow",
+                f"अपने {label} elbow को 90 degrees पर मोड़ें — wrist को सीधे elbow के ऊपर रखें",
                 severity=1,
             ))
 
@@ -574,6 +624,7 @@ def check_corpse_pose(landmarks):
         corrections.append(_correction(
             "corpse_horizontal",
             "Lie flat on your back — keep your body horizontal",
+            "पीठ के बल सीधे लेटें — अपने शरीर को horizontal रखें",
             severity=3,
         ))
 
@@ -582,12 +633,14 @@ def check_corpse_pose(landmarks):
         corrections.append(_correction(
             "corpse_left_arm",
             "Move your left arm slightly away from your body",
+            "अपने left arm को शरीर से थोड़ा दूर ले जाएं",
             severity=1,
         ))
     if abs(_lm(lms, 16).x - _lm(lms, 12).x) < 0.20:
         corrections.append(_correction(
             "corpse_right_arm",
             "Move your right arm slightly away from your body",
+            "अपने right arm को शरीर से थोड़ा दूर ले जाएं",
             severity=1,
         ))
 
@@ -597,6 +650,7 @@ def check_corpse_pose(landmarks):
         corrections.append(_correction(
             "corpse_legs_crossed",
             "Keep your feet slightly apart — let your toes fall open",
+            "अपने पैरों को थोड़ा अलग रखें — toes को बाहर की तरफ ढीला छोड़ दें",
             severity=1,
         ))
 
@@ -606,6 +660,7 @@ def check_corpse_pose(landmarks):
         corrections.append(_correction(
             "corpse_head",
             "Keep your head neutral and centred",
+            "अपने head को सीधा और centre में रखें",
             severity=1,
         ))
 
@@ -635,6 +690,7 @@ def check_bridge_pose(landmarks):
         corrections.append(_correction(
             "bridge_hips_raised",
             "Lift your hips higher toward the ceiling — they should be above your shoulders and knees",
+            "अपने hips को छत की ओर और ऊपर उठाएं — वे shoulders और knees से ऊपर होने चाहिए",
             severity=3,
         ))
 
@@ -645,6 +701,7 @@ def check_bridge_pose(landmarks):
         corrections.append(_correction(
             "bridge_knees_cave",
             "Keep your knees parallel — don't let them cave inward",
+            "अपने knees को parallel रखें — उन्हें अंदर की तरफ न झुकने दें",
             severity=2,
         ))
 
@@ -653,6 +710,7 @@ def check_bridge_pose(landmarks):
         corrections.append(_correction(
             "bridge_feet_flat",
             "Keep your feet flat on the floor",
+            "अपने पैरों को floor पर सीधा रखें",
             severity=2,
         ))
 
@@ -682,6 +740,7 @@ def check_supine_twist_pose(landmarks):
         corrections.append(_correction(
             "supine_twist_knee",
             "Cross one knee over your body to the opposite side",
+            "एक knee को शरीर के ऊपर से दूसरी side ले जाएं",
             severity=3,
         ))
 
@@ -691,6 +750,7 @@ def check_supine_twist_pose(landmarks):
         corrections.append(_correction(
             "supine_twist_shoulders",
             "Keep both shoulders flat on the mat",
+            "दोनों shoulders को mat पर सीधा रखें",
             severity=2,
         ))
 
@@ -699,12 +759,14 @@ def check_supine_twist_pose(landmarks):
         corrections.append(_correction(
             "supine_twist_left_arm",
             "Extend your left arm out to the side at shoulder height",
+            "अपने left arm को shoulder की height पर side में फैलाएं",
             severity=1,
         ))
     if abs(_lm(lms, 16).y - _lm(lms, 12).y) > 0.20:
         corrections.append(_correction(
             "supine_twist_right_arm",
             "Extend your right arm out to the side at shoulder height",
+            "अपने right arm को shoulder की height पर side में फैलाएं",
             severity=1,
         ))
 
@@ -735,6 +797,7 @@ def check_happy_baby_pose(landmarks):
         corrections.append(_correction(
             "happy_baby_knees_up",
             "Pull your knees closer to your chest",
+            "अपने knees को अपनी chest के करीब लाएं",
             severity=3,
         ))
 
@@ -744,6 +807,7 @@ def check_happy_baby_pose(landmarks):
         corrections.append(_correction(
             "happy_baby_knees_wide",
             "Open your knees wide toward your armpits",
+            "अपने knees को अपनी armpits की तरफ चौड़ा खोलें",
             severity=2,
         ))
 
@@ -752,6 +816,7 @@ def check_happy_baby_pose(landmarks):
         corrections.append(_correction(
             "happy_baby_ankles",
             "Stack your ankles directly over your knees",
+            "अपने ankles को सीधे अपने knees के ऊपर रखें",
             severity=2,
         ))
 
