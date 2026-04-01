@@ -27,7 +27,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="AI Yoga Assist Client")
     parser.add_argument("--server", type=str, default="http://localhost:8000", help="Server URL")
     parser.add_argument("--camera", type=int, default=0, help="Camera index")
-    parser.add_argument("--lang", type=str, choices=["en", "hi"], default="en", help="Voice language")
+    parser.add_argument("--lang", type=str, choices=["en", "hi"], default="hi", help="Voice language")
     return parser.parse_args()
 
 def main():
@@ -40,7 +40,7 @@ def main():
     )
     
     # Initialize Feedback Manager (Local Voice)
-    fm = FeedbackManager(cooldown_seconds=12.0, tick_seconds=5.0, lang=args.lang)
+    fm = FeedbackManager(lang=args.lang)
     fm.start()
     
     cap = cv2.VideoCapture(args.camera)
@@ -51,6 +51,7 @@ def main():
     print(f"Client started. Connecting to server at {args.server}...")
     
     server_online = True
+    last_pose_label = ""
 
     try:
         while cap.isOpened():
@@ -98,11 +99,12 @@ def main():
                 
                 if not all_visible:
                     status_msg = f"Step into frame - {missing_part} not visible"
-                    # FIX: Voice feedback for visibility
-                    msg = f"Step into frame, {missing_part} not visible"
-                    if args.lang == "hi":
-                        msg = f"frame में आएं, आपका {missing_part} नहीं दिख रहा"
-                    fm.update([{"key": "frame_visibility", "message": msg, "severity": 3}])
+                    fm.update([{
+                        "key": "frame_visibility", 
+                        "message": f"Step into frame, {missing_part} not visible",
+                        "message_hi": f"frame में आएं, आपका {missing_part} नहीं दिख रहा",
+                        "severity": 3
+                    }])
                 else:
                     # Extract landmarks as list of [x, y, z]
                     lm_list = [[lm.x, lm.y, lm.z] for lm in landmarks]
@@ -122,20 +124,16 @@ def main():
                             corrections = data.get("corrections", [])
                             server_online = True
                             
+                            # Announcement on pose transition
+                            if pose_label != "None" and pose_label != last_pose_label:
+                                fm.speak_immediate(pose_label)
+                                last_pose_label = pose_label
+
                             # Update FeedbackManager
                             if is_correct:
                                 fm.update_good()
                             else:
-                                # HINDI SUPPORT: Use message_hi if lang is hi
-                                processed_corrections = []
-                                for c in corrections:
-                                    msg = c["message_hi"] if args.lang == "hi" and "message_hi" in c else c["message"]
-                                    processed_corrections.append({
-                                        "key": c["key"],
-                                        "message": msg,
-                                        "severity": c["severity"]
-                                    })
-                                fm.update(processed_corrections)
+                                fm.update(corrections)
                         else:
                             status_msg = f"Server Error: {response.status_code}"
                     except requests.exceptions.RequestException:
@@ -143,11 +141,12 @@ def main():
 
             else:
                 status_msg = "No body detected"
-                # FIX: Voice feedback for no body
-                msg = "come into frame"
-                if args.lang == "hi":
-                    msg = "कोई body नहीं मिली, frame में आएं"
-                fm.update([{"key": "no_body", "message": msg, "severity": 3}])
+                fm.update([{
+                    "key": "no_body", 
+                    "message": "come into frame", 
+                    "message_hi": "कोई body नहीं मिली, frame में आएं",
+                    "severity": 3
+                }])
 
             # ── Drawing ───────────────────────────────────────────────────────
             

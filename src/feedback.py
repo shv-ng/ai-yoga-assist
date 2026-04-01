@@ -16,10 +16,11 @@ import os
 # ─────────────────────────────────────────────
 
 class CorrectionEntry:
-    def __init__(self, key: str, message: str, severity: int):
-        self.key      = key
-        self.message  = message
-        self.severity = severity
+    def __init__(self, key: str, message_en: str, severity: int, message_hi: str = None):
+        self.key        = key
+        self.message_en = message_en
+        self.message_hi = message_hi
+        self.severity   = severity
 
     def __lt__(self, other):
         return self.severity > other.severity   # max-heap on severity
@@ -47,8 +48,8 @@ class FeedbackManager:
 
     def __init__(
         self,
-        cooldown_seconds: float = 10.0,
-        tick_seconds:     float = 5.0,
+        cooldown_seconds: float = 5.0,
+        tick_seconds:     float = 2.0,
         lang:             str = "en",
     ):
         self.cooldown_seconds = cooldown_seconds
@@ -91,6 +92,10 @@ class FeedbackManager:
             self.lang = lang
             logging.info("FeedbackManager language switched to %s", lang)
 
+    def speak_immediate(self, text: str):
+        """Speak text immediately in a separate thread, bypassing the queue."""
+        threading.Thread(target=self._speak, args=(text,), daemon=True).start()
+
     def update(self, corrections: list):
         """
         Call every frame with the current correction list.
@@ -101,7 +106,9 @@ class FeedbackManager:
             for c in corrections:
                 key = c["key"]
                 if key not in self._pending_keys:
-                    heapq.heappush(self._pending, CorrectionEntry(key, c["message"], c["severity"]))
+                    msg_en = c.get("message", "")
+                    msg_hi = c.get("message_hi", "")
+                    heapq.heappush(self._pending, CorrectionEntry(key, msg_en, c["severity"], msg_hi))
                     self._pending_keys.add(key)
 
     def update_good(self):
@@ -159,7 +166,10 @@ class FeedbackManager:
 
                         # ✓ Speak this one
                         self._cooldowns[entry.key] = now
-                        message = entry.message
+                        if self.lang == "hi" and entry.message_hi:
+                            message = entry.message_hi
+                        else:
+                            message = entry.message_en
                         break   # only one per tick
 
                     # Re-insert cooled-down active entries
