@@ -172,7 +172,7 @@ model.summary()
 
 # ## Compile & Train
 
-# In[8]:
+# In[7]:
 
 
 model.compile(
@@ -202,7 +202,7 @@ history = model.fit(
 
 # ## Visualise Training Curves
 
-# In[9]:
+# In[8]:
 
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -229,7 +229,7 @@ plt.show()
 
 # ## Confusion Matrix
 
-# In[10]:
+# In[9]:
 
 
 y_pred_probs = model.predict(X_test)
@@ -251,7 +251,7 @@ plt.show()
 
 # ## Metrics
 
-# In[11]:
+# In[10]:
 
 
 print('=' * 50)
@@ -278,9 +278,34 @@ print(classification_report(
 ))
 
 
+# In[11]:
+
+
+# Per-Class F1-Score Bar Chart
+from sklearn.metrics import f1_score
+
+f1_scores = f1_score(y_true, y_pred, average=None)
+
+plt.figure(figsize=(10, 5))
+bars = plt.bar(le.classes_, f1_scores, color='steelblue', edgecolor='black')
+plt.title('Per-Class F1-Score')
+plt.xlabel('Pose')
+plt.ylabel('F1-Score')
+plt.ylim(0, 1.05)
+plt.xticks(rotation=45, ha='right')
+
+# Add value labels on top of each bar
+for bar, score in zip(bars, f1_scores):
+    plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
+             f'{score:.2f}', ha='center', va='bottom', fontsize=10)
+
+plt.tight_layout()
+plt.show()
+
+
 # ## Save Model & Encoder
 
-# In[12]:
+# In[ ]:
 
 
 os.makedirs('../models', exist_ok=True)
@@ -296,7 +321,7 @@ print('Encoder saved → ../models/label_encoder.pkl')
 
 # ## Export to TFLite (for Raspberry Pi)
 
-# In[13]:
+# In[ ]:
 
 
 # Convert to TFLite with float32 (safe default)
@@ -332,7 +357,7 @@ print('Outputs match:', np.allclose(keras_probs, tflite_probs, atol=1e-4))
 # 
 # Reproduces exactly what `realtime.py` does per frame, so you can verify end-to-end before touching the camera.
 
-# In[14]:
+# In[ ]:
 
 
 CONFIDENCE_THRESHOLD = 0.6

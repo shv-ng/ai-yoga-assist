@@ -109,15 +109,6 @@ class LandmarkPipeline:
         lm_list = self._to_landmark_list(normed)
         return self.to_feature_vector(lm_list)  # (99,) flat array
 
-    def process(self, landmarks) -> list:
-        """
-        EMA smooth → normalize.
-        Use this for corrections geometry only.
-        """
-        raw      = self._to_array(landmarks)
-        smoothed = self._smooth(raw)            # updates EMA state
-        normed   = self._normalize(smoothed)
-        return self._to_landmark_list(normed)
     # ── Internal steps ────────────────────────────────────────────────────────
 
     def _to_array(self, landmarks) -> np.ndarray:
